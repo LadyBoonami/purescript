@@ -416,6 +416,9 @@ infer' (Hole name) = do
 infer' (PositionedValue pos c val) = warnAndRethrowWithPositionTC pos $ do
   TypedValue t v ty <- infer' val
   return $ TypedValue t (PositionedValue pos c v) ty
+infer' (CostCentre cc val) = do
+  TypedValue t v ty <- infer' val
+  return $ TypedValue t (CostCentre cc v) ty
 infer' v = internalError $ "Invalid argument to infer: " ++ show v
 
 inferLetBinding
@@ -733,6 +736,9 @@ check' val kt@(KindedType ty kind) = do
 check' (PositionedValue pos c val) ty = warnAndRethrowWithPositionTC pos $ do
   TypedValue t v ty' <- check' val ty
   return $ TypedValue t (PositionedValue pos c v) ty'
+check' (CostCentre cc val) ty = do
+  TypedValue t v ty' <- check' val ty
+  return $ TypedValue t (CostCentre cc v) ty'
 check' val ty = do
   TypedValue _ val' ty' <- infer val
   elaborate <- subsumes ty' ty

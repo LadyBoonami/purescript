@@ -79,6 +79,7 @@ everywhereOnValues f g h = (f', g', h')
   g' (Do es) = g (Do (fmap handleDoNotationElement es))
   g' (Ado es v) = g (Ado (fmap handleDoNotationElement es) (g' v))
   g' (PositionedValue pos com v) = g (PositionedValue pos com (g' v))
+  g' (CostCentre cc v) = g (CostCentre cc (g' v))
   g' other = g other
 
   h' :: Binder -> Binder
@@ -153,6 +154,7 @@ everywhereOnValuesTopDownM f g h = (f' <=< f, g' <=< g, h' <=< h)
   g' (Do es) = Do <$> traverse handleDoNotationElement es
   g' (Ado es v) = Ado <$> traverse handleDoNotationElement es <*> (g v >>= g')
   g' (PositionedValue pos com v) = PositionedValue pos com <$> (g v >>= g')
+  g' (CostCentre cc v) = CostCentre cc <$> (g v >>= g')
   g' other = g other
 
   h' :: Binder -> m Binder
@@ -222,6 +224,7 @@ everywhereOnValuesM f g h = (f', g', h')
   g' (Do es) = (Do <$> traverse handleDoNotationElement es) >>= g
   g' (Ado es v) = (Ado <$> traverse handleDoNotationElement es <*> g' v) >>= g
   g' (PositionedValue pos com v) = (PositionedValue pos com <$> g' v) >>= g
+  g' (CostCentre cc v) = (CostCentre cc <$> g' v) >>= g
   g' other = g other
 
   h' :: Binder -> m Binder
@@ -294,6 +297,7 @@ everythingOnValues (<>.) f g h i j = (f', g', h', i', j')
   g' v@(Do es) = foldl (<>.) (g v) (fmap j' es)
   g' v@(Ado es v1) = foldl (<>.) (g v) (fmap j' es) <>. g' v1
   g' v@(PositionedValue _ _ v1) = g v <>. g' v1
+  g' v@(CostCentre _ v1) = g v <>. g' v1
   g' v = g v
 
   h' :: Binder -> r
@@ -375,6 +379,7 @@ everythingWithContextOnValues s0 r0 (<>.) f g h i j = (f'' s0, g'' s0, h'' s0, i
   g' s (Do es) = foldl (<>.) r0 (fmap (j'' s) es)
   g' s (Ado es v1) = foldl (<>.) r0 (fmap (j'' s) es) <>. g'' s v1
   g' s (PositionedValue _ _ v1) = g'' s v1
+  g' s (CostCentre _ v1) = g'' s v1
   g' _ _ = r0
 
   h'' :: s -> Binder -> r
@@ -460,6 +465,7 @@ everywhereWithContextOnValuesM s0 f g h i j = (f'' s0, g'' s0, h'' s0, i'' s0, j
   g' s (Do es) = Do <$> traverse (j'' s) es
   g' s (Ado es v) = Ado <$> traverse (j'' s) es <*> g'' s v
   g' s (PositionedValue pos com v) = PositionedValue pos com <$> g'' s v
+  g' s (CostCentre cc v) = CostCentre cc <$> g'' s v
   g' _ other = return other
 
   h'' s = uncurry h' <=< h s
@@ -559,6 +565,7 @@ everythingWithScope f g h i j = (f'', g'', h'', i'', \s -> snd . j'' s)
     let s' = S.union s (foldMap (fst . j'' s) es)
     in g'' s' v1
   g' s (PositionedValue _ _ v1) = g'' s v1
+  g' s (CostCentre _ v1) = g'' s v1
   g' _ _ = mempty
 
   h'' :: S.Set ScopedIdent -> Binder -> r

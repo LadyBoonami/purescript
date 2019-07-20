@@ -575,6 +575,7 @@ reservedPsNames = [ "data"
                   , "false"
                   , "in"
                   , "where"
+                  , "scc"
                   ]
 
 reservedTypeNames :: [Text]

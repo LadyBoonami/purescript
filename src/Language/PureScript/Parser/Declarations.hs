@@ -434,6 +434,10 @@ parseLet = do
   result <- parseValue
   return $ Let FromLet ds result
 
+parseCostCentre :: TokenParser Expr
+parseCostCentre = CostCentre <$> (P.try (reserved "scc") *> parseLabel)
+                             <*> parseValue
+
 parseValueAtom :: TokenParser Expr
 parseValueAtom = withSourceSpan PositionedValue $ P.choice
                  [ parseAnonymousArgument
@@ -444,6 +448,7 @@ parseValueAtom = withSourceSpan PositionedValue $ P.choice
                  , withSourceSpan' Literal $ parseArrayLiteral parseValue
                  , withSourceSpan' Literal $ parseObjectLiteral parseIdentifierAndValue
                  , parseAbs
+                 , parseCostCentre
                  , P.try parseConstructor
                  , P.try parseVar
                  , parseCase

@@ -815,6 +815,9 @@ data Expr
   -- A value with source position information
   --
   | PositionedValue SourceSpan [Comment] Expr
+  -- |
+  -- A cost centre annotation
+  | CostCentre PSString Expr
   deriving (Show)
 
 -- |
@@ -909,4 +912,5 @@ isTrueExpr (Var _ (Qualified (Just (ModuleName [ProperName "Prelude"])) (Ident "
 isTrueExpr (Var _ (Qualified (Just (ModuleName [ProperName "Data", ProperName "Boolean"])) (Ident "otherwise"))) = True
 isTrueExpr (TypedValue _ e _) = isTrueExpr e
 isTrueExpr (PositionedValue _ _ e) = isTrueExpr e
+isTrueExpr (CostCentre _ e) = isTrueExpr e
 isTrueExpr _ = False

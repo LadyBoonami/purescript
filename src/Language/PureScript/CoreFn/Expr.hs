@@ -52,6 +52,10 @@ data Expr a
   -- A let binding
   --
   | Let a [Bind a] (Expr a)
+  -- |
+  -- A cost centre annotation
+  --
+  | CostCentre a PSString (Expr a)
   deriving (Show, Functor)
 
 -- |
@@ -105,6 +109,7 @@ extractAnn (App a _ _) = a
 extractAnn (Var a _) = a
 extractAnn (Case a _ _) = a
 extractAnn (Let a _ _) = a
+extractAnn (CostCentre a _ _) = a
 
 
 -- |
@@ -120,3 +125,4 @@ modifyAnn f (App a b c)           = App (f a) b c
 modifyAnn f (Var a b)             = Var (f a) b
 modifyAnn f (Case a b c)          = Case (f a) b c
 modifyAnn f (Let a b c)           = Let (f a) b c
+modifyAnn f (CostCentre a b c)    = CostCentre (f a) b c

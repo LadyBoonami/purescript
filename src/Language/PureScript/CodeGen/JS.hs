@@ -252,6 +252,7 @@ moduleToJs (Module _ coms mn _ imps exps foreigns decls) foreign_ =
     in return $ iife (properToJs ctor) [ constructor
                           , AST.Assignment Nothing (accessorString "create" (AST.Var Nothing (properToJs ctor))) createFn
                           ]
+  valueToJs' (CostCentre _ cc v) = AST.CostCentre Nothing cc <$> valueToJs' v
 
   iife :: Text -> [AST] -> AST
   iife v exprs = AST.App Nothing (AST.Function Nothing Nothing [] (AST.Block Nothing $ exprs ++ [AST.Return Nothing $ AST.Var Nothing v])) []

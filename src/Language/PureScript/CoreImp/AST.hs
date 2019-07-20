@@ -92,6 +92,8 @@ data AST
   -- ^ instanceof check
   | Comment (Maybe SourceSpan) [Comment] AST
   -- ^ Commented JavaScript
+  | CostCentre (Maybe SourceSpan) PSString AST
+  -- ^ Cost Centre
   deriving (Show, Eq)
 
 withSourceSpan :: SourceSpan -> AST -> AST
@@ -123,6 +125,7 @@ withSourceSpan withSpan = go where
   go (Throw _ js) = Throw ss js
   go (InstanceOf _ j1 j2) = InstanceOf ss j1 j2
   go (Comment _ com j) = Comment ss com j
+  go (CostCentre _ cc j) = CostCentre ss cc j
 
 getSourceSpan :: AST -> Maybe SourceSpan
 getSourceSpan = go where
@@ -150,6 +153,7 @@ getSourceSpan = go where
   go (Throw ss _) = ss
   go (InstanceOf ss _ _) = ss
   go (Comment ss _ _) = ss
+  go (CostCentre ss _ _) = ss
 
 everywhere :: (AST -> AST) -> AST -> AST
 everywhere f = go where
@@ -172,6 +176,7 @@ everywhere f = go where
   go (Throw ss js) = f (Throw ss (go js))
   go (InstanceOf ss j1 j2) = f (InstanceOf ss (go j1) (go j2))
   go (Comment ss com j) = f (Comment ss com (go j))
+  go (CostCentre ss cc j) = f (CostCentre ss cc (go j))
   go other = f other
 
 everywhereTopDown :: (AST -> AST) -> AST -> AST
@@ -198,6 +203,7 @@ everywhereTopDownM f = f >=> go where
   go (Throw ss j) = Throw ss <$> f' j
   go (InstanceOf ss j1 j2) = InstanceOf ss <$> f' j1 <*> f' j2
   go (Comment ss com j) = Comment ss com <$> f' j
+  go (CostCentre ss cc j) = CostCentre ss cc <$> f' j
   go other = f other
 
 everything :: (r -> r -> r) -> (AST -> r) -> AST -> r
@@ -221,4 +227,5 @@ everything (<>.) f = go where
   go j@(Throw _ j1) = f j <>. go j1
   go j@(InstanceOf _ j1 j2) = f j <>. go j1 <>. go j2
   go j@(Comment _ _ j1) = f j <>. go j1
+  go j@(CostCentre _ _ j1) = f j <>. go j1
   go other = f other

@@ -22,7 +22,7 @@ import Language.PureScript.CoreImp.AST
 import Language.PureScript.Comments
 import Language.PureScript.Crash
 import Language.PureScript.Pretty.Common
-import Language.PureScript.PSString (PSString, decodeString, prettyPrintStringJS)
+import Language.PureScript.PSString (PSString, mkString, decodeString, prettyPrintStringJS)
 
 -- TODO (Christoph): Get rid of T.unpack / pack
 
@@ -118,6 +118,11 @@ literals = mkPattern' match'
     [ return $ emit "\n"
     , mconcat <$> forM com comment
     , prettyPrintJS' js
+    ]
+  match (CostCentre _ cc js) = mconcat <$> sequence
+    [ return $ emit $ "[console.log(" <> prettyPrintStringJS (mkString (T.pack "begin ") <> cc) <> "), "
+    , prettyPrintJS' js
+    , return $ emit $ ", console.log(" <> prettyPrintStringJS (mkString (T.pack "end   ") <> cc) <> ")][1]"
     ]
   match _ = mzero
 

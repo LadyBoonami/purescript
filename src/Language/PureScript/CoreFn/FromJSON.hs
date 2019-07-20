@@ -144,7 +144,7 @@ bindFromJSON modulePath = withObject "Bind" bindFromObj
       "NonRec"  -> (uncurry . uncurry) NonRec <$> bindFromObj' o
       "Rec"     -> Rec <$> (o .: "binds" >>= listParser (withObject "Bind" bindFromObj'))
       _         -> fail ("not recognized bind type \"" ++ T.unpack type_ ++ "\"")
-        
+
   bindFromObj' :: Object -> Parser ((Ann, Ident), Expr Ann)
   bindFromObj' o = do
     a <- o .: "annotation" >>= annFromJSON modulePath
@@ -175,6 +175,7 @@ exprFromJSON modulePath = withObject "Expr" exprFromObj
       "App"           -> appFromObj o
       "Case"          -> caseFromObj o
       "Let"           -> letFromObj o
+      "CostCentre"    -> costCentreFromObj o
       _               -> fail ("not recognized expression type: \"" ++ T.unpack type_ ++ "\"")
 
   varFromObj o = do
@@ -229,6 +230,12 @@ exprFromJSON modulePath = withObject "Expr" exprFromObj
     bs  <- o .: "binds" >>= listParser (bindFromJSON modulePath)
     e   <- o .: "expression" >>= exprFromJSON modulePath
     return $ Let ann bs e
+
+  costCentreFromObj o = do
+    ann <- o .: "annotation" >>= annFromJSON modulePath
+    cc  <- o .: "name"
+    e   <- o .: "expression" >>= exprFromJSON modulePath
+    return $ CostCentre ann cc e
 
 caseAlternativeFromJSON :: FilePath -> Value -> Parser (CaseAlternative Ann)
 caseAlternativeFromJSON modulePath = withObject "CaseAlternative" caseAlternativeFromObj
