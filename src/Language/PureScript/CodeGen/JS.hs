@@ -62,8 +62,16 @@ moduleToJs (Module _ coms mn _ imps exps foreigns decls) foreign_ =
     comments <- not <$> asks optionsNoComments
     let strict = AST.StringLiteral Nothing "use strict"
     let header = if comments && not (null coms) then AST.Comment Nothing coms strict else strict
+    let profSetup = [ AST.VariableIntroduction Nothing "$prof"
+                        (Just $ AST.App Nothing (AST.Var Nothing "require")
+                          [AST.StringLiteral Nothing (fromString "../profiling.js")]
+                        )
+                    , AST.App Nothing
+                        (AST.Indexer Nothing (AST.StringLiteral Nothing (fromString "start")) (AST.Var Nothing "$prof"))
+                        []
+                    ]
     let foreign' = [AST.VariableIntroduction Nothing "$foreign" foreign_ | not $ null foreigns || isNothing foreign_]
-    let moduleBody = header : foreign' ++ jsImports ++ concat optimized
+    let moduleBody = header : profSetup ++ foreign' ++ jsImports ++ concat optimized
     let foreignExps = exps `intersect` foreigns
     let standardExps = exps \\ foreignExps
     let exps' = AST.ObjectLiteral Nothing $ map (mkString . runIdent &&& AST.Var Nothing . identToJs) standardExps

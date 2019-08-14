@@ -22,7 +22,7 @@ import Language.PureScript.CoreImp.AST
 import Language.PureScript.Comments
 import Language.PureScript.Crash
 import Language.PureScript.Pretty.Common
-import Language.PureScript.PSString (PSString, mkString, decodeString, prettyPrintStringJS)
+import Language.PureScript.PSString (PSString, decodeString, prettyPrintStringJS)
 
 -- TODO (Christoph): Get rid of T.unpack / pack
 
@@ -120,9 +120,9 @@ literals = mkPattern' match'
     , prettyPrintJS' js
     ]
   match (CostCentre _ cc js) = mconcat <$> sequence
-    [ return $ emit $ "[console.log(" <> prettyPrintStringJS (mkString (T.pack "begin ") <> cc) <> "), "
+    [ return $ emit $ "$prof.makebinding(" <> prettyPrintStringJS cc <> ", function() { return "
     , prettyPrintJS' js
-    , return $ emit $ ", console.log(" <> prettyPrintStringJS (mkString (T.pack "end   ") <> cc) <> ")][1]"
+    , return $ emit $ "; })"
     ]
   match _ = mzero
 
@@ -244,10 +244,10 @@ prettyPrintJS' = A.runKleisli $ runPattern matchValue
                   , [ Wrap app $ \args val -> val <> emit "(" <> args <> emit ")" ]
                   , [ unary New "new " ]
                   , [ Wrap lam $ \(name, args, ss) ret -> addMapping' ss <>
-                      emit ("function "
-                        <> fromMaybe "" name
-                        <> "(" <> intercalate ", " args <> ") ")
-                        <> ret ]
+                      emit (maybe "" (\x -> "var " <> x <> " = ") name
+                        <> "$prof.makefn(function(" <> intercalate ", " args <> ") ")
+                        <> ret
+                        <> emit ")"]
                   , [ unary     Not                  "!"
                     , unary     BitwiseNot           "~"
                     , unary     Positive             "+"
