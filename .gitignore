@@ -22,8 +22,6 @@ tests/support/package-lock.json
 .psc-package/
 purescript.cabal
 
-/playground/*
-
 # Profiling related
 *.aux
 *.hp

@@ -2,8 +2,13 @@
 
 exports.debug = false;
 
+var allow_process_hrtime = false;
+var allow_performance_now = false;
+var default_mode = "lockstep";
+var root_cc = "SYSTEM";
+
 exports.init_worker = function() {
-	console.log("init worker");
+	console.log("Using worker accounting");
 	var w = 0;
 
 	var lastDbg = exports.debug;
@@ -33,38 +38,61 @@ exports.init_worker = function() {
 	exports.start  = function()   { sendMsg(["start"     ]); };
 	exports.stop   = function()   { sendMsg(["stop"      ]); };
 	exports.enter  = function(cc) { sendMsg(["enter" , cc]); };
-	exports.setcc  = function(cc) { sendMsg(["setcc" , cc]); };
 
-	exports.savecc = function() {
-		var code = Math.random();
-		sendMsg(["savecc", code]);
-		return code;
+	exports.setcc = function(cc) {
+		ccc = cc;
+		sendMsg(["setcc" , cc]);
 	};
 
-	exports.restorecc = function(code, del) {
-		sendMsg(["restorecc", code, del]);
+	exports.makefn = function(fn) {
+		var cc = ccc;
+
+		return function(...args) {
+			var cc_ = ccc;
+			exports.setcc(cc);
+
+			var ret = fn.apply(this, args);
+
+			exports.setcc(cc_);
+			return ret;
+		}
 	};
 
-	exports.makecc("MAIN");
-}
+	exports.makebinding = function(cc, fn) {
+		exports.makecc(cc);
+
+		var cc_ = ccc;
+		exports.setcc(cc);
+
+		var f = fn();
+		var ret = typeof f === "function"
+			? function(...args) {
+				exports.enter(cc);
+				return f.apply(this, args);
+			}
+			: (exports.enter(cc), f);
+
+		exports.setcc(cc_);
+		return ret;
+	};
+
+	exports.makecc(root_cc);
+};
 
 
 
-exports.init_timer = function() {
-	console.log("init timer");
+var tick = 0;
+var ccc = "";
+var ccs = {};
 
-	var ccc = "";
-	var ccs = {};
+function init_timer() {
 	var last = 0;
-	var running = false;
 	var shortestTick = 1000000;
 
-	var tick = 0;
-
-	if (typeof process !== "undefined" && typeof process.hrtime !== "undefined") {
+	if (allow_process_hrtime && typeof process !== "undefined" && typeof process.hrtime !== "undefined") {
 		console.log("Using process.hrtime time measurement (resolution >= 1ns)");
 
-		tick = function() {
+		tick = function(target) {
 			var tmp  = process.hrtime();
 			var curr = (tmp[0] + tmp[1] / 1e9) * 1000;
 			var ret  = curr - last;
@@ -77,13 +105,16 @@ exports.init_timer = function() {
 			if (0 < ret && ret < shortestTick)
 				shortestTick = ret;
 
+			if (typeof target !== "undefined")
+				ccs[target].ticks += ret;
+
 			return ret;
 		};
 	}
-	else if (typeof performance !== "undefined" && typeof performance.now !== "undefined") {
+	else if (allow_performance_now && typeof performance !== "undefined" && typeof performance.now !== "undefined") {
 		console.log("Using performance.now time measurement (resolution >= 1μs)");
 
-		tick = function() {
+		tick = function(target) {
 			var curr = performance.now();
 			var ret  = curr - last;
 
@@ -95,6 +126,9 @@ exports.init_timer = function() {
 			if (0 < ret && ret < shortestTick)
 				shortestTick = ret;
 
+			if (typeof target !== "undefined")
+				ccs[target].ticks += ret;
+
 			return ret;
 
 		};
@@ -102,7 +136,7 @@ exports.init_timer = function() {
 	else {
 		console.log("Using Date.now time measurement (resolution >= 1ms)");
 
-		tick = function() {
+		tick = function(target) {
 			var curr = Date.now();
 			var ret  = curr - last;
 
@@ -114,15 +148,95 @@ exports.init_timer = function() {
 			if (0 < ret && ret < shortestTick)
 				shortestTick = ret;
 
+			if (typeof target !== "undefined")
+				ccs[target].ticks += ret;
+
 			return ret;
 		};
 	}
 
+	tick();
+}
+
+
+
+function init_lockstep() {
+	var next = 0;
+
+	if (allow_process_hrtime && typeof process !== "undefined" && typeof process.hrtime !== "undefined") {
+		console.log("Using process.hrtime time measurement (resolution >= 1ns)");
+
+		tick = function(target) {
+			var now = process.hrtime();
+			var ticks = 0;
+
+			while (now[0] >= next[0] && now[1] >= next[1]) {
+				next[1] += 1000000;
+				if (next[1] >= 1000000000) {
+					next[1] -= 1000000000;
+					next[0] += 1;
+				}
+				ticks++;
+			}
+
+			if (typeof target !== "undefined")
+				ccs[target].ticks += ticks;
+
+			return ticks;
+		};
+
+		next = process.hrtime();
+	}
+	else if (allow_performance_now && typeof performance !== "undefined" && typeof performance.now !== "undefined") {
+		console.log("Using performance.now time measurement (resolution >= 1μs)");
+
+		tick = function(target) {
+			var now = performance.now();
+			var ticks = 0;
+
+			while (now >= next) {
+				next++;
+				ticks++;
+			}
+
+			if (typeof target !== "undefined")
+				ccs[target].ticks += ticks;
+
+			return ticks;
+		};
+
+		next = performance.now();
+	}
+	else {
+		console.log("Using Date.now time measurement (resolution >= 1ms)");
+
+		tick = function(target) {
+			var now = Date.now();
+			var ticks = 0;
+
+			while (now >= next) {
+				next++;
+				ticks++;
+			}
+
+			if (typeof target !== "undefined")
+				ccs[target].ticks += ticks;
+
+			return ticks;
+		};
+
+		next = Date.now();
+	}
+}
+
+
+
+function init_common() {
+	var running = false;
+	var started = 0;
+
 	exports.makecc = function(cc) {
 		if (typeof ccs[cc] === "undefined") {
-			if (exports.debug)
-				console.log("Creating cc " + cc);
-
 			ccs[cc] = {
 				"name": cc,
 				"ticks": 0,
@@ -131,32 +245,12 @@ exports.init_timer = function() {
 		}
 	};
 
-	function tickAndBill() {
-		if (last === 0)
-			tick();
-
-		else {
-			var cost = tick();
-
-			if (exports.debug)
-				console.log("Attribute " + cost + " tick(s) to \"" + ccc + "\"");
-
-			if (typeof ccs[ccc] === "undefined")
-				console.log("Warning, undefined cost centre tick: " + cost + " to \"" + ccc + "\"");
-
-			else
-				ccs[ccc].ticks += cost;
-		}
-	}
-
 	exports.start = function() {
 		if (!running) {
 			running = true;
 
-			if (exports.debug)
-				console.log("Start profiling");
-
-			exports.setcc("MAIN");
+			ccc = root_cc;
+			started = Date.now();
 		}
 	};
 
@@ -184,100 +278,105 @@ exports.init_timer = function() {
 		ks.sort(function(a, b) { return ccs[b].ticks - ccs[a].ticks; });
 
 		console.log();
-		console.log("Profiling results, 1 tick ~= 1ms");
-		console.log("Shortest tick registered: " + shortestTick.toPrecision(3));
+		console.log("Profiling results, 1 tick = 1ms");
+		console.log("Total: " + (Date.now() - started).toFixed(1) + " ticks");
+
+		if (typeof shortestTick !== "undefined")
+			console.log("Shortest interval registered: " + shortestTick.toPrecision(3));
+
 		console.log();
-		console.log(padr("Cost Centre", 40) + " | " + padr("Ticks", 10) + " | " + padr("Entries", 10));
-		console.log(padr("", 40, "-") + "-+-" + padr("", 10, "-") + "-+-" + padr("", 10, "-"));
+		console.log(padr("Cost Centre", 53) + " | " + padr("Ticks", 10) + " | " + padr("Entries", 10));
+		console.log(padr("", 53, "-") + "-+-" + padr("", 10, "-") + "-+-" + padr("", 10, "-"));
+
+		var omitted = 0;
+		var sum = 0;
 
 		for (var i = 0; i < ks.length; ++i)
-			console.log(
-				padr(ccs[ks[i]].name, 40) + " | " +
-				padl(ccs[ks[i]].ticks.toFixed(1), 10) + " | " +
-				padl(ccs[ks[i]].entries, 10)
-			);
+			if (ccs[ks[i]].ticks > 1)
+				console.log(
+					padr(ccs[ks[i]].name, 53) + " | " +
+					padl(ccs[ks[i]].ticks.toFixed(1), 10) + " | " +
+					padl(ccs[ks[i]].entries, 10)
+				);
+			else {
+				omitted++;
+				sum += ccs[ks[i]].ticks;
+			}
+
+		console.log("");
+		console.log("(plus " + omitted + " more entries with <=1 tick each, total " + sum.toFixed(1) + " ticks)");
 	}
 
 	exports.stop = function() {
 		if (running) {
 			running = false;
-
-			if (exports.debug)
-				console.log("End profiling");
-
-			tickAndBill();
-
+			tick(ccc);
 			dump();
 		}
 	};
 
-	exports.enter = function(cc) {
-		if (typeof cc === "undefined")
-			cc = ccc;
+	exports.makefn = function(fn) {
+		var cc = ccc;
 
-		if (typeof ccs[cc] === "undefined")
-			console.log("Warning, undefined cost centre entry: " + cost + " to \"" + cc + "\"");
+		return function(...args) {
+			var cc_ = ccc;
+			tick(ccc);
+			ccc = cc;
 
-		else
-			ccs[cc].entries++;
+			var ret = fn.apply(this, args);
+
+			tick(ccc);
+			ccc = cc_;
+			return ret;
+		}
 	};
 
-	exports.setcc = function(cc) {
-		if (exports.debug)
-			console.log("Set cc \"" + cc + "\"");
+	exports.makebinding = function(cc, fn) {
+		exports.makecc(cc);
 
-		tickAndBill();
-
+		var cc_ = ccc;
+		tick(ccc);
 		ccc = cc;
+
+		var f = fn();
+		var ret = typeof f === "function"
+			? function(...args) {
+				ccs[cc].entries++;
+				return f.apply(this, args);
+			}
+			: (ccs[cc].entries++, f);
+
+		tick(ccc);
+		ccc = cc_;
+		return ret;
 	};
 
-	exports.savecc = function() {
-		if (exports.debug)
-			console.log("Save cc \"" + ccc + "\"");
-
-		return ccc;
-	};
-
-	exports.restorecc = function(cc) {
-		if (exports.debug)
-			console.log("Restore cc \"" + cc + "\"");
-
-		exports.setcc(cc);
-	};
-
-	exports.makecc("MAIN");
+	exports.makecc(root_cc);
+	ccc = root_cc;
 }
 
 
 
-exports.makefn = function(fn) {
-	var cc = exports.savecc();
-
-	return function(...args) {
-		var cc_ = exports.savecc();
-		exports.restorecc(cc, false);
-
-		var ret = fn.apply(this, args);
-
-		exports.restorecc(cc_, true);
-		return ret;
-	}
+exports.init_timer = function() {
+	console.log("Using timer accounting");
+	init_timer();
+	init_common();
 };
 
 
 
-exports.makebinding = function(cc, fn) {
-	exports.makecc(cc);
+exports.init_lockstep = function() {
+	console.log("Using lockstep accounting");
+	init_lockstep();
+	init_common();
+};
 
-	var cc_ = exports.savecc();
-	exports.setcc(cc);
 
-	var f = fn();
-	var ret = function(...args) {
-		exports.enter(cc);
-		return f.apply(this, args);
-	}
 
-	exports.restorecc(cc_, true);
-	return ret;
+exports.start = function() {
+	eval("exports.init_" + default_mode + "();");
+	exports.start();
+
+	if (typeof process !== "undefined" && typeof process.on !== "undefined")
+		process.on("exit", exports.stop);
 };

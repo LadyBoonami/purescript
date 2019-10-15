@@ -3,7 +3,6 @@
 var ccc = "";
 var ccs = {};
 var timer = 0;
-var saved = {};
 var debug = false;
 
 function onmsg(message) {
@@ -11,13 +10,11 @@ function onmsg(message) {
 		console.log("Worker received", message);
 
 	switch (message[0]) {
-		case "makecc":    makecc(message[1]);                break;
-		case "start":     start();                           break;
-		case "stop":      stop();                            break;
-		case "enter":     enter(message[1]);                 break;
-		case "setcc":     setcc(message[1]);                 break;
-		case "savecc":    savecc(message[1]);                break;
-		case "restorecc": restorecc(message[1], message[2]); break;
+		case "makecc":    makecc(message[1]); break;
+		case "start":     start();            break;
+		case "stop":      stop();             break;
+		case "enter":     enter(message[1]);  break;
+		case "setcc":     setcc(message[1]);  break;
 
 		case "debug":
 			debug = message[1];
@@ -66,15 +63,12 @@ function stop() {
 	timer = 0;
 	ccc = "";
 	dump();
-	setInterval(process.exit, 1000);
+	setTimeout(process.exit, 1000);
 }
 
 
 
 function enter(cc) {
-	if (typeof ccs[cc] === "undefined")
-		ccs[cc] = makecc(cc);
-
 	ccs[cc].entries++;
 }
 
@@ -86,27 +80,14 @@ function setcc(cc) {
 
 
 
-function savecc(code) {
-	saved[code] = ccc;
-}
-
-
-
-function restorecc(code, del) {
-	ccc = saved[code];
-
-	if (del)
-		saved[code] = undefined;
-}
-
-
-
 function tick() {
+	console.log("tick '" + ccc + "'");
 	if (!(typeof ccs[ccc] === "undefined"))
 		ccs[ccc].ticks++;
-
+/*
 	else
 		console.log("Warning, undefined cost centre tick: " + ccc);
+*/
 }
 
 

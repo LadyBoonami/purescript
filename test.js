@@ -43,11 +43,13 @@ var bench = prof.makebinding("bench", () => prof.makefn(function(x) {
 	}
 }));
 
+var test = prof.makebinding("test", () => "Hello, World!");
+
 var main = prof.makebinding("main", () => prof.makefn(function() {
 	bench(n);
 	map(prof.makefn(function (x) { console.log("" + x); return x; }), replicate(0, n));
+	console.log(test);
+	prof.stop();
 }));
 
-main();
-
-prof.stop();
+setTimeout(main, 1000);

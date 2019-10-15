@@ -56,7 +56,7 @@ moduleToJs (Module _ coms mn _ imps exps foreigns decls) foreign_ =
     jsImports <- traverse (importToJs mnLookup)
       . (\\ (mn : C.primModules)) $ ordNub $ map snd imps
     let decls' = renameModules mnLookup decls
-    jsDecls <- mapM bindToJs decls'
+    jsDecls <- mapM bindToJs $ map (addCC mn) decls'
     optimized <- traverse (traverse optimize) jsDecls
     F.traverse_ (F.traverse_ checkIntegers) optimized
     comments <- not <$> asks optionsNoComments
@@ -133,6 +133,13 @@ moduleToJs (Module _ coms mn _ imps exps foreigns decls) foreign_ =
       let (_,mnSafe) = fromMaybe (internalError "Missing value in mnLookup") $ M.lookup mn' mnLookup
       in Qualified (Just mnSafe) a
     renameQual q = q
+
+  -- |
+  -- Add cost centre declarations to top-level bindings.
+  --
+  addCC :: ModuleName -> Bind a -> Bind a
+  addCC mn' (NonRec ann ident val) = NonRec ann ident (CostCentre ann (mkString $ runModuleName mn' <> " : " <> runIdent ident) val)
+  addCC mn' (Rec l               ) = Rec $ map (\((ann, ident), val) -> ((ann, ident), CostCentre ann (mkString $ runModuleName mn' <> " : " <> runIdent ident) val)) l
 
   -- |
   -- Generate code in the simplified JavaScript intermediate representation for a declaration
