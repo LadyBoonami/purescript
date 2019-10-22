@@ -244,7 +244,7 @@ prettyPrintJS' = A.runKleisli $ runPattern matchValue
                   , [ Wrap app $ \args val -> val <> emit "(" <> args <> emit ")" ]
                   , [ unary New "new " ]
                   , [ Wrap lam $ \(name, args, ss) ret -> addMapping' ss <>
-                      emit (maybe "" (\x -> "var " <> x <> " = ") name
+                      emit (maybe "" (\x -> if x == "__do" then "" else "var " <> x <> " = ") name
                         <> "$prof.makefn(function(" <> intercalate ", " args <> ") ")
                         <> ret
                         <> emit ")"]

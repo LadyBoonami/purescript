@@ -239,8 +239,7 @@ function init_common() {
 		if (typeof ccs[cc] === "undefined") {
 			ccs[cc] = {
 				"name": cc,
-				"ticks": 0,
-				"entries": 0
+				"ticks": 0
 			};
 		}
 	};
@@ -274,18 +273,19 @@ function init_common() {
 	}
 
 	function dump() {
+		var total = Date.now() - started;
 		var ks = Object.keys(ccs);
 		ks.sort(function(a, b) { return ccs[b].ticks - ccs[a].ticks; });
 
 		console.log();
 		console.log("Profiling results, 1 tick = 1ms");
-		console.log("Total: " + (Date.now() - started).toFixed(1) + " ticks");
+		console.log("Total: " + total.toFixed(1) + " ticks");
 
 		if (typeof shortestTick !== "undefined")
 			console.log("Shortest interval registered: " + shortestTick.toPrecision(3));
 
 		console.log();
-		console.log(padr("Cost Centre", 53) + " | " + padr("Ticks", 10) + " | " + padr("Entries", 10));
+		console.log(padr("Cost Centre", 53) + " | " + padr("Ticks", 10) + " | " + padr("%", 10));
 		console.log(padr("", 53, "-") + "-+-" + padr("", 10, "-") + "-+-" + padr("", 10, "-"));
 
 		var omitted = 0;
@@ -296,7 +296,7 @@ function init_common() {
 				console.log(
 					padr(ccs[ks[i]].name, 53) + " | " +
 					padl(ccs[ks[i]].ticks.toFixed(1), 10) + " | " +
-					padl(ccs[ks[i]].entries, 10)
+					padl((ccs[ks[i]].ticks / total * 100).toFixed(2), 10)
 				);
 			else {
 				omitted++;
@@ -338,13 +338,7 @@ function init_common() {
 		tick(ccc);
 		ccc = cc;
 
-		var f = fn();
-		var ret = typeof f === "function"
-			? function(...args) {
-				ccs[cc].entries++;
-				return f.apply(this, args);
-			}
-			: (ccs[cc].entries++, f);
+		var ret = fn();
 
 		tick(ccc);
 		ccc = cc_;

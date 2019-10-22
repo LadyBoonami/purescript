@@ -1,8 +1,12 @@
 module Main where
 
+import Data.List
+import Data.Maybe
 import Prelude
 import Effect
 import Effect.Console
+import Effect.Random
+import Partial.Unsafe
 
 {-
 
@@ -17,7 +21,7 @@ main = scc "main" logShow $ bench (\x -> x) 0 1000000
 
 -}
 
-
+-- {-
 
 depth :: Number -> Number -> Int
 depth r i = steps - depth' steps r i r i
@@ -65,3 +69,28 @@ pict rmin rmax rstep imin imax istep
 
 main :: Effect Unit
 main = log $ pict (-2.0) 1.0 0.04 (-1.4) 1.4 0.06
+
+-- -}
+
+{-
+
+randomList :: Effect (List Int)
+randomList = shuffle $ 1..1000
+
+shuffle :: List Int -> Effect (List Int)
+shuffle Nil = pure Nil
+shuffle l   = do
+    n  <- randomInt 0 $ length l - 1
+    l' <- shuffle (take n l <> drop (n+1) l)
+    pure $ Cons (unsafePartial $ fromJust $ l !! n) l'
+
+qsort :: List Int -> List Int
+qsort Nil         = Nil
+qsort (Cons x xs) = qsort (filter (\i -> i < x) xs) <> singleton x <> qsort (filter (\i -> i >= x) xs)
+
+main :: Effect Unit
+main = do
+    l <- randomList
+    logShow $ qsort l
+
+-}

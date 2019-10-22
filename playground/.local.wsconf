@@ -1,0 +1,37 @@
+*.purs
+	-ets
+	-lcl "-- "
+	-lcb {- -}
+	-lsc ' '
+	-lsm \" \"
+	-lsr ` `
+	-les \\
+	-lb ( )
+	-lb { }
+	-lk as
+	-lk case
+	-lk of
+	-lk class
+	-lk data
+	-lk instance
+	-lk default
+	-lk deriving
+	-lk do
+	-lk forall
+	-lk foreign
+	-lk hiding
+	-lk if
+	-lk then
+	-lk else
+	-lk import
+	-lk infix
+	-lk infixl
+	-lk infixr
+	-lk instance
+	-lk let
+	-lk in
+	-lk module
+	-lk newtype
+	-lk qualified
+	-lk type
+	-lk where
