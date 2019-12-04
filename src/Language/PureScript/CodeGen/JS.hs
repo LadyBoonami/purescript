@@ -64,7 +64,7 @@ moduleToJs (Module _ coms mn _ imps exps foreigns decls) foreign_ =
     let header = if comments && not (null coms) then AST.Comment Nothing coms strict else strict
     let profSetup = [ AST.VariableIntroduction Nothing "$prof"
                         (Just $ AST.App Nothing (AST.Var Nothing "require")
-                          [AST.StringLiteral Nothing (fromString "../profiling.js")]
+                          [AST.StringLiteral Nothing (fromString "../Profiling/index.js")]
                         )
                     , AST.App Nothing
                         (AST.Indexer Nothing (AST.StringLiteral Nothing (fromString "start")) (AST.Var Nothing "$prof"))

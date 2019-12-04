@@ -21,7 +21,7 @@ main = scc "main" logShow $ bench (\x -> x) 0 1000000
 
 -}
 
--- {-
+{-
 
 depth :: Number -> Number -> Int
 depth r i = steps - depth' steps r i r i
@@ -72,7 +72,7 @@ main = log $ pict (-2.0) 1.0 0.04 (-1.4) 1.4 0.06
 
 -- -}
 
-{-
+-- {-
 
 randomList :: Effect (List Int)
 randomList = shuffle $ 1..1000
@@ -93,4 +93,4 @@ main = do
     l <- randomList
     logShow $ qsort l
 
--}
+-- -}
