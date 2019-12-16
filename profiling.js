@@ -31,7 +31,7 @@ function init_timer() {
 			if (0 < ret && ret < shortestTick)
 				shortestTick = ret;
 
-			if (typeof target !== "undefined")
+			if (typeof ccs[target] !== "undefined")
 				ccs[target].ticks += ret;
 
 			return ret;
@@ -52,7 +52,7 @@ function init_timer() {
 			if (0 < ret && ret < shortestTick)
 				shortestTick = ret;
 
-			if (typeof target !== "undefined")
+			if (typeof ccs[target] !== "undefined")
 				ccs[target].ticks += ret;
 
 			return ret;
@@ -74,7 +74,7 @@ function init_timer() {
 			if (0 < ret && ret < shortestTick)
 				shortestTick = ret;
 
-			if (typeof target !== "undefined")
+			if (typeof ccs[target] !== "undefined")
 				ccs[target].ticks += ret;
 
 			return ret;
@@ -105,7 +105,7 @@ function init_lockstep() {
 				ticks++;
 			}
 
-			if (typeof target !== "undefined")
+			if (typeof ccs[target] !== "undefined")
 				ccs[target].ticks += ticks;
 
 			return ticks;
@@ -125,7 +125,7 @@ function init_lockstep() {
 				ticks++;
 			}
 
-			if (typeof target !== "undefined")
+			if (typeof ccs[target] !== "undefined")
 				ccs[target].ticks += ticks;
 
 			return ticks;
@@ -145,7 +145,7 @@ function init_lockstep() {
 				ticks++;
 			}
 
-			if (typeof target !== "undefined")
+			if (typeof ccs[target] !== "undefined")
 				ccs[target].ticks += ticks;
 
 			return ticks;
@@ -176,8 +176,15 @@ function init_common() {
 		if (!running) {
 			running = true;
 
+			var ks = Object.keys(ccs);
+			for (var i = 0; i < ks.length; ++i) {
+				ccs[ks[i]].ticks = 0;
+				ccs[ks[i]].count = ks[i] === "SYSTEM" ? 1 : 0;
+			}
+
 			ccc = root_cc;
 			started = Date.now();
+			tick("");
 		}
 	};
 
@@ -229,7 +236,7 @@ function init_common() {
 		var sum = 0;
 
 		for (var i = 0; i < ks.length; ++i)
-			if (ccs[ks[i]].ticks > 1)
+			if (ccs[ks[i]].ticks >= 1 || ccs[ks[i]].count >= 1)
 				print(
 					padr(ccs[ks[i]].name, 60) + " | " +
 					padl(ccs[ks[i]].ticks.toFixed(1), 10) + " | " +
@@ -237,13 +244,6 @@ function init_common() {
 					padl(ccs[ks[i]].count, 10) + " | " +
 					padl((ccs[ks[i]].ticks / ccs[ks[i]].count).toExponential(3), 10)
 				);
-			else {
-				omitted++;
-				sum += ccs[ks[i]].ticks;
-			}
-
-		print("");
-		print("(plus " + omitted + " more entries with <=1 tick each, total " + sum.toFixed(1) + " ticks)");
 	}
 
 	exports.stop = function() {
@@ -254,9 +254,6 @@ function init_common() {
 			dump();
 
 			ccc = null;
-			var ks = Object.keys(ccs);
-			for (var i = 0; i < ks.length; ++i)
-				exports.makecc(ccs[ks[i]]);
 		}
 	};
 
@@ -265,16 +262,20 @@ function init_common() {
 
 		return function() {
 			var cc_ = ccc;
-			tick(ccc);
-			if (cc != ccc)
-				ccs[cc].count++;
-			ccc = cc;
+			if (running) {
+				tick(ccc);
+				if (cc != ccc)
+					ccs[cc].count++;
+				ccc = cc;
+			}
 
 			var args = Array.prototype.slice.call(arguments);
 			var ret = fn.apply(this, args);
 
-			tick(ccc);
-			ccc = cc_;
+			if (running) {
+				tick(ccc);
+				ccc = cc_;
+			}
 			return ret;
 		}
 	};
@@ -283,15 +284,19 @@ function init_common() {
 		exports.makecc(cc);
 
 		var cc_ = ccc;
-		tick(ccc);
-		if (cc != ccc)
-			ccs[cc].count++;
-		ccc = cc;
+		if (running) {
+			tick(ccc);
+			if (cc != ccc)
+				ccs[cc].count++;
+			ccc = cc;
+		}
 
 		var ret = fn();
 
-		tick(ccc);
-		ccc = cc_;
+		if (running) {
+			tick(ccc);
+			ccc = cc_;
+		}
 		return ret;
 	};
 
