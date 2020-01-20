@@ -2,9 +2,17 @@
 
 while [ -n "$1" ]; do
 	case "$1" in
-		"on")
+		"clean")
 			rm -r output
-			./mkln.sh
+			shift
+		;;
+
+		"touch")
+			touch src/*.purs
+			shift
+		;;
+
+		"on")
 			pushd "$HOME/.local/bin/"
 			ln -sfv purs-prof purs
 			popd
@@ -12,8 +20,6 @@ while [ -n "$1" ]; do
 		;;
 
 		"off")
-			rm -r output
-			./mkln.sh
 			pushd "$HOME/.local/bin/"
 			ln -sfv purs-vanilla purs
 			popd
@@ -21,6 +27,7 @@ while [ -n "$1" ]; do
 		;;
 
 		"build")
+			./mkln.sh
 			./npm-do.sh pulp build
 			shift
 		;;
